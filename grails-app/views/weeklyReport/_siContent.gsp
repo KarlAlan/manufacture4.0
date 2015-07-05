@@ -1,0 +1,30 @@
+<table class="table table-bordered">
+    <thead>
+    <tr>
+        <th>新增</th>
+        <th>BA分析</th>
+        <th>SA设计</th>
+        <th>方案确认</th>
+        <th>开发</th>
+        <th>SIT测试</th>
+        <th>UAT测试</th>
+        <th>发布生产环境</th>
+        <th>累计完成</th>
+        <th>完成率</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>${countNe}</td>
+        <td>${countBa}</td>
+        <td>${countSa}</td>
+        <td>${countAu}</td>
+        <td>${countDe}</td>
+        <td>${countSi}</td>
+        <td>${countUa}</td>
+        <td>${countDp}</td>
+        <td>${sumFi}</td>
+        <td><g:formatNumber number="${rateFi}" type="percent" maxFractionDigits="2" /></td>
+    </tr>
+    </tbody>
+</table>
