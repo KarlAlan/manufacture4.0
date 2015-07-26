@@ -43,7 +43,10 @@ dependencies {
     // plugins for the build system only
     bootstrap "org.grails.plugins:tomcat:7.0.55"
 
+    // DB Driver
     runtime 'mysql:mysql-connector-java:5.1.19'
+    runtime 'com.oracle:ojdbc14:10.2.0.4.0'
+
     test "org.grails:grails-datastore-test-support:1.0-grails-2.4"
 
     compile 'c3p0:c3p0:0.9.1.2'
