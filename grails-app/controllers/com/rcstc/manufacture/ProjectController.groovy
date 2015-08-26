@@ -373,4 +373,71 @@ class ProjectController {
 
         [pl: pl, hours: hours, total: total, des: des, dev: dev, amount: amount[0]]
     }
+
+    /*
+    项目质量统计报表
+    查询条件		月份:			项目名称：
+	报表统计
+    月份	项目名称	总需求数	有效需求数	超期条数	期望完成率	及时完成率	UAT通过率	BUG占比	好评率
+
+     */
+    def qualityReport1(){
+        def person = springSecurityService.currentUser
+
+        DateTime dt = DateTime.now()
+        int year = dt.getWeekyear()
+        int month = dt.getMonthOfYear()
+
+        if(params.demand_month){
+            year = params.demand_year ? params.int("demand_year") : year
+            month = params.demand_month ? params.int("demand_month") : month
+        } else {
+            params.demand_year = year
+            params.demand_month = month
+        }
+
+        DateTime dt1 = new DateTime(year,month,1,0,0)
+        Date stop_date = dt1.dayOfMonth().withMaximumValue().toDate()
+        Date start_date = dt1.dayOfMonth().withMinimumValue().toDate()
+
+        def pl = publicService.plist(person)
+        def plids = new Long[pl.size()]
+        pl.eachWithIndex {it,index ->
+            plids[index] = it.id
+        }
+
+        def hql = Demand.executeQuery("select d.project.name, count(d.id), sum(case when d.status != 1 and d.status != 40 then 1 else 0 end), sum(case when d.siFinishDate > d.planDeliveryDate then 1 else 0 end), 60, sum(case when d.siFinishDate <= d.planDeliveryDate then 1 else 0 end), sum(case when d.status = 99 then 1 else 0 end), sum(case when d.status != 1 and d.status != 40 and d.type = 20 then 1 else 0 end), sum(case when d.evaluate = 'good' then 1 else 0 end), sum(case when d.evaluate is not null then 1 else 0 end) from Demand d where d.planStartDate between :sd and :td and d.project.id in (:pids) group by d.project.name",[sd: start_date, td:stop_date, pids: plids])
+        [stat: hql]
+    }
+
+    /*
+    项目需求状态统计
+    查询条件			项目:
+    统计信息
+    序号	项目	草稿	分析	设计	确认	开发	SIT	UAT	作废	关闭	合计
+
+     */
+    def statusReport1(){
+        def person = springSecurityService.currentUser
+
+        def pl = publicService.plist(person)
+        def plids = new Long[pl.size()]
+        pl.eachWithIndex {it,index ->
+            plids[index] = it.id
+        }
+
+        def hql = Demand.executeQuery("select d.project.id, d.project.name, " +
+                "sum(case when d.status = 1 then 1 else 0 end), " +
+                "sum(case when d.status = 10 then 1 else 0 end), " +
+                "sum(case when d.status = 20 then 1 else 0 end), " +
+                "sum(case when d.status = 12 then 1 else 0 end), " +
+                "sum(case when d.status = 30 then 1 else 0 end), " +
+                "sum(case when d.status = 31 then 1 else 0 end), " +
+                "sum(case when d.status = 32 then 1 else 0 end), " +
+                "sum(case when d.status = 40 then 1 else 0 end), " +
+                "sum(case when d.status = 99 then 1 else 0 end), " +
+                "count(d.id) " +
+                "from Demand d where d.project.id in (:pids) group by d.project.id, d.project.name",[pids: plids])
+        [stat: hql]
+    }
 }

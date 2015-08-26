@@ -222,7 +222,7 @@ class TaskController {
 
         request.withFormat {
             form multipartForm {
-                flash.message = message(code: 'default.updated.message', args: [message(code: 'Task.label', default: 'Task'), taskInstance.id])
+                flash.message = message(code: 'default.updated.message', args: [message(code: 'task.label', default: 'Task'), taskInstance.id])
                 redirect taskInstance
             }
             '*' { respond taskInstance, [status: OK] }
@@ -241,7 +241,7 @@ class TaskController {
 
         request.withFormat {
             form multipartForm {
-                flash.message = message(code: 'default.deleted.message', args: [message(code: 'Task.label', default: 'Task'), taskInstance.id])
+                flash.message = message(code: 'default.deleted.message', args: [message(code: 'task.label', default: 'Task'), taskInstance.id])
                 redirect action: "index", method: "GET"
             }
             '*' { render status: NO_CONTENT }
@@ -354,21 +354,6 @@ class TaskController {
         [taskInstance: t,pl:pl]
     }
 
-    @Secured(["hasRole('USER')"])
-    def ajaxMyDevelopTasks(){
-        def person = springSecurityService.currentUser
-        def pid = params.long("pid")
-        def r = Task.executeQuery("select t.id, t.serial, t.description, t.proposal, b.startDate, b.planFinishDate, t.priority from Task t join t.project p join t.batch b where p.id = :pid and b.developer.id = :person and t.status = 10",[pid:pid,person:person.id])
-        render r as JSON
-    }
-
-    @Secured(["hasRole('USER')"])
-    def ajaxMySitTasks(){
-        def person = springSecurityService.currentUser
-        def pid = params.long("pid")
-        def r = Task.executeQuery("select t.id, t.serial, t.description, t.proposal, b.startDate, b.planFinishDate, t.priority from Task t join t.project p join t.batch b where p.id = :pid and b.sitPeople.id = :person and t.status = 20",[pid:pid,person:person.id])
-        render r as JSON
-    }
 
     @Secured(["hasRole('USER')"])
     @Transactional
@@ -797,5 +782,53 @@ class TaskController {
 
         def result = taskService.statBackward(f1, f2, params.task_person_name, params.back_times)
         [tasks: result["tasks"], params:params]
+    }
+
+    /*
+    周计划统计报表
+    1、周：指安排开发计划日期，转为周；
+    2、需求序号：指录入需求时产生的号；
+    3、简单描述：需求描述；
+    4、是否完成：SIT完成为“是”，否则为“否”；
+
+    5、是否通过：UAT测试通过为“是”，不通过为“否”，为测试为空；
+    6、是否发布：发布登记为“是”，否则为“否”；
+     */
+    def weekplanReport1(){
+        def person = springSecurityService.currentUser
+
+        int max = params.max ? params.int('max') : 10
+        int offset = params.offset ? params.int('offset') : 0
+
+        DateTime dt = DateTime.now()
+        int year = dt.getWeekyear()
+        int week = dt.getWeekOfWeekyear()
+
+        if(params.demand_week){
+            year = params.demand_year ? params.int("demand_year") : year
+            week = params.demand_week ? params.int("demand_week") : week
+        } else {
+            params.demand_year = year
+            params.demand_week = week
+        }
+
+        DateTime dt1 = new DateTime(year,1,1,0,0)
+        Date stop_date = dt1.plusWeeks(week-1).dayOfWeek().withMaximumValue().toDate()
+        Date start_date = dt1.plusWeeks(week-1).dayOfWeek().withMinimumValue().toDate()
+
+        def pl = publicService.plist(person)
+        def plids = new Long[pl.size()]
+        pl.eachWithIndex {it,index ->
+            plids[index] = it.id
+        }
+
+        // 通过Task和WeeklyPlan的关系获取
+        //def r1 = Demand.executeQuery("select d.priority, d.serial, d.title, d.project.name, case when d.status = 31 or d.status = 32 or d.status = 99 then 1 else 0 end, case when d.status = 32 or d.status = 99 then 1 else 0 end, case when d.deployDate != null then 1 else 0 end from Demand d, WeeklyPlan wp join wp.tasks t where t.demand = d and wp.year = :year and wp.week = :week",[year: year, week: week, max: max,offset: offset])
+
+        // 直接根据Demnand的计划日期进行过滤
+        def r1 = Demand.executeQuery("select d.priority, d.serial, d.title, d.project.name, case when d.status = 31 or d.status = 32 or d.status = 99 then 1 else 0 end, case when d.status = 32 or d.status = 99 then 1 else 0 end, case when d.deployDate != null then 1 else 0 end, d.status from Demand d where d.planDeliveryDate between :pd and :ps and d.project.id in (:pids)",[pids: plids, pd: start_date, ps: stop_date, max: max,offset: offset])
+        def rcount = Demand.executeQuery("select count(*) from Demand d where d.planDeliveryDate between :pd and :ps and d.project.id in (:pids)",[pids: plids, pd: start_date, ps: stop_date])
+        [demands: r1, demandsCount: rcount[0], params: params, pl: pl]
+
     }
 }

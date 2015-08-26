@@ -363,4 +363,6 @@ class WeeklyPlanController {
 
         render re as JSON
     }
+
+
 }
