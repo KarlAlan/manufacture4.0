@@ -29,9 +29,6 @@ allprojects {
 
 apply from: "versioning.gradle"
 
-version "4.0.1-SNAPSHOT"
-group "com.rcstc"
-
 apply plugin: "grails"
 apply plugin: 'maven'
 apply plugin: 'eclipse'
@@ -110,7 +107,6 @@ uploadArchives {
         }
     }
 }
-
 
 cargoDeployRemote.dependsOn cargoUndeployRemote
 
