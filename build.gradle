@@ -12,9 +12,22 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath "org.grails:grails-gradle-plugin:2.1.2"
+        classpath "org.grails:grails-gradle-plugin:2.1.2",
+         "com.bmuschko:gradle-cargo-plugin:2.1.1"
     }
 }
+
+def env = project.hasProperty('env')?project.getProject('env'):'test'
+logger.quiet "Loading configuration for environment '$env'."
+
+def configFile = file("buildConfig.groovy")
+def parsedConfig = new ConfigSlurper(env).parse(configFile.toURL())
+
+allprojects {
+	ext.config = parsedConfig
+}
+
+apply from: "versioning.gradle"
 
 version "4.0.1-SNAPSHOT"
 group "com.rcstc"
@@ -23,6 +36,8 @@ apply plugin: "grails"
 apply plugin: 'maven'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
+
+apply plugin: "com.bmuschko.cargo"
 
 repositories {
     maven {url "${nexusUrl}/content/groups/public"}
@@ -45,7 +60,7 @@ dependencies {
 
     // DB Driver
     runtime 'mysql:mysql-connector-java:5.1.19'
-    runtime 'com.oracle:ojdbc14:10.2.0.4.0'
+    runtime 'com.oracle:ojdbc14:10.2.0.5.0'
 
     test "org.grails:grails-datastore-test-support:1.0-grails-2.4"
 
@@ -93,6 +108,30 @@ uploadArchives {
                 authentication(userName: nexusUsername, password: nexusPassword)
             }
         }
+    }
+}
+
+
+cargoDeployRemote.dependsOn cargoUndeployRemote
+
+cargoUndeployRemote {
+    onlyIf { true }
+}
+
+cargo {
+    containerId = 'tomcat7x'
+
+    port = config.server.port
+
+    deployable {
+        file = file("${buildDir}/repo/${project.name}.war")
+        context = config.server.context
+    }
+
+    remote {
+        hostname = config.server.hostname        // all these are variables defined in the gradle.properties file
+        username = config.server.username
+        password = config.server.password
     }
 }
 
